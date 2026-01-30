@@ -1,0 +1,56 @@
+name: Build ROMA Apps
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build_android:
+    name: Build Android APKs
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      # --- BUILD CLIENT APP ---
+      - name: Client - Get Dependencies
+        working-directory: ./roma_client
+        run: flutter pub get
+
+      - name: Client - Build APK
+        working-directory: ./roma_client
+        run: flutter build apk --release
+        
+      - name: Upload Client Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: roma-client-apk
+          path: roma_client/build/app/outputs/flutter-apk/app-release.apk
+
+      # --- BUILD ADMIN APP ---
+      - name: Admin - Get Dependencies
+        working-directory: ./roma_admin
+        run: flutter pub get
+
+      - name: Admin - Build APK
+        working-directory: ./roma_admin
+        run: flutter build apk --release
+
+      - name: Upload Admin Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: roma-admin-apk
+          path: roma_admin/build/app/outputs/flutter-apk/app-release.apk
