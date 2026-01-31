@@ -6,16 +6,15 @@ on:
   pull_request:
     branches: [ "main" ]
 
-# --- ADD THIS PERMISSIONS BLOCK ---
+# --- PERMISSIONS: Required for creating Releases ---
 permissions:
   contents: write
-# ----------------------------------
 
 jobs:
   build_android:
     name: Build Android APKs
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -30,8 +29,10 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          
-      # --- BUILD ADMIN APP ---
+
+      # ========================================================
+      # 1. BUILD ADMIN APP
+      # ========================================================
       - name: Admin - Get Dependencies
         working-directory: ./roma_admin
         run: flutter pub get
@@ -40,22 +41,49 @@ jobs:
         working-directory: ./roma_admin
         run: flutter build apk --release
 
-      # Saves to "Artifacts" (Temporary storage)
+      # Rename Admin APK so it is distinct
+      - name: Rename Admin APK
+        run: mv roma_admin/build/app/outputs/flutter-apk/app-release.apk roma_admin/build/app/outputs/flutter-apk/roma-admin-v1.0.${{ github.run_number }}.apk
+
       - name: Upload Admin Artifact
         uses: actions/upload-artifact@v4
         with:
           name: roma-admin-apk
-          path: roma_admin/build/app/outputs/flutter-apk/app-release.apk
+          path: roma_admin/build/app/outputs/flutter-apk/roma-admin-v1.0.${{ github.run_number }}.apk
 
-      # --- NEW STEP: SAVES TO RELEASES (Permanent storage) ---
+      # ========================================================
+      # 2. BUILD CLIENT APP
+      # ========================================================
+      - name: Client - Get Dependencies
+        working-directory: ./roma_client
+        run: flutter pub get
+
+      - name: Client - Build APK
+        working-directory: ./roma_client
+        run: flutter build apk --release
+
+      # Rename Client APK so it is distinct
+      - name: Rename Client APK
+        run: mv roma_client/build/app/outputs/flutter-apk/app-release.apk roma_client/build/app/outputs/flutter-apk/roma-client-v1.0.${{ github.run_number }}.apk
+
+      - name: Upload Client Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: roma-client-apk
+          path: roma_client/build/app/outputs/flutter-apk/roma-client-v1.0.${{ github.run_number }}.apk
+
+      # ========================================================
+      # 3. CREATE RELEASE (Combines Both Apps)
+      # ========================================================
       - name: Create Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
-          # This creates a version like v1.0.42 automatically
-          tag_name: v1.0.${{ github.run_number }} 
+          tag_name: v1.0.${{ github.run_number }}
           name: Release v1.0.${{ github.run_number }}
-          files: roma_admin/build/app/outputs/flutter-apk/app-release.apk
+          files: |
+            roma_admin/build/app/outputs/flutter-apk/roma-admin-v1.0.${{ github.run_number }}.apk
+            roma_client/build/app/outputs/flutter-apk/roma-client-v1.0.${{ github.run_number }}.apk
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
