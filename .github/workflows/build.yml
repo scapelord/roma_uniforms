@@ -25,21 +25,6 @@ jobs:
         with:
           channel: 'stable'
           
-      # --- BUILD CLIENT APP ---
-      - name: Client - Get Dependencies
-        working-directory: ./roma_client
-        run: flutter pub get
-
-      - name: Client - Build APK
-        working-directory: ./roma_client
-        run: flutter build apk --release
-        
-      - name: Upload Client Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: roma-client-apk
-          path: roma_client/build/app/outputs/flutter-apk/app-release.apk
-
       # --- BUILD ADMIN APP ---
       - name: Admin - Get Dependencies
         working-directory: ./roma_admin
