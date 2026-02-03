@@ -3,6 +3,7 @@ import 'package:roma_shared/theme/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:roma_client/features/home/main_layout.dart';
+import 'package:roma_client/features/auth/auth_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -71,9 +72,11 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     ),
                     onPressed: () {
-                      Navigator.pushReplacement(
+                      Navigator.push(
                         context, 
-                        MaterialPageRoute(builder: (_) => const MainLayout())
+                        MaterialPageRoute(
+                          builder: (_) => const AuthScreen(initialMode: AuthMode.login),
+                        ),
                       );
                     },
                     child: Text(
@@ -101,7 +104,12 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     ),
                     onPressed: () {
-                      // Navigate to Signup
+                      Navigator.push(
+                        context, 
+                        MaterialPageRoute(
+                          builder: (_) => const AuthScreen(initialMode: AuthMode.signup),
+                        ),
+                      );
                     },
                     child: Text(
                       "JOIN THE TEAM",

@@ -5,6 +5,8 @@ import 'package:roma_shared/theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:roma_client/features/cart/cart_provider.dart';
 import 'package:roma_client/services/client_order_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:roma_client/features/auth/auth_screen.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -36,6 +38,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   // --- THE CHECKOUT LOGIC ---
   Future<void> _processCheckout() async {
+    // 0. AUTH CHECK
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      final loggedIn = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const AuthScreen(isRedirect: true),
+        ),
+      );
+
+      if (loggedIn != true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("You must be logged in to checkout.")),
+          );
+        }
+        return;
+      }
+    }
+
     if (!_formKey.currentState!.validate()) return;
     
     // Calculate Total
