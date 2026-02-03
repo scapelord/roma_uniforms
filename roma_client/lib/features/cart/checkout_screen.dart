@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_paystack_plus/flutter_paystack_plus.dart'; // IMPORT PAYSTACK
+import 'package:flutter_paystack_plus/flutter_paystack_plus.dart'; 
 import 'package:roma_shared/theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:roma_client/features/cart/cart_provider.dart';
@@ -18,6 +18,10 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
   final _addressCtrl = TextEditingController();
+  
+  // FIX 1: Defined the missing controller here
+  final _manualMpesaCtrl = TextEditingController(); 
+
   // Paystack Live Key
   final String _paystackPublicKey = "pk_live_3117e1b5490f76523d666513330ee1dbef1f1155"; 
 
@@ -32,8 +36,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   };
 
   @override
-  void initState() {
-    super.initState();
+  void dispose() {
+    // FIX: Always dispose controllers to free memory
+    _addressCtrl.dispose();
+    _manualMpesaCtrl.dispose();
+    super.dispose();
   }
 
   // --- THE CHECKOUT LOGIC ---
@@ -73,7 +80,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       // STRATEGY 1: MANUAL M-PESA
       if (_selectedPaymentMethod == 'MPESA_MANUAL') {
         paymentRef = _manualMpesaCtrl.text;
-        await _submitOrderToDatabase(totalAmount, deliveryFee, paymentRef);
+        
+        // FIX 2: Added '?? ""' to handle potential null values safely
+        await _submitOrderToDatabase(totalAmount, deliveryFee, paymentRef ?? "");
       } 
       
       // STRATEGY 2: PAYSTACK (Cards / Auto M-Pesa)
@@ -90,7 +99,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             },
             onSuccess: () async {
               paymentRef = "PAYSTACK:SUCCESS";
-              await _submitOrderToDatabase(totalAmount, deliveryFee, paymentRef);
+              
+              // FIX 2: Added '?? ""' here as well
+              await _submitOrderToDatabase(totalAmount, deliveryFee, paymentRef ?? "");
             },
           );
         } catch (e) {
