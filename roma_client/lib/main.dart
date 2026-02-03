@@ -4,6 +4,7 @@ import 'package:roma_shared/widgets/launch_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:roma_shared/constants/app_constants.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +13,8 @@ Future<void> main() async {
     url: AppConstants.supabaseUrl,
     anonKey: AppConstants.supabaseAnonKey,
   );
+
+  await dotenv.load(fileName: ".env");
 
   runApp(const ProviderScope(child: RomaClientApp()));
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_paystack_plus/flutter_paystack_plus.dart'; 
 import 'package:roma_shared/theme/app_colors.dart';
@@ -22,8 +23,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   // FIX 1: Defined the missing controller here
   final _manualMpesaCtrl = TextEditingController(); 
 
-  // Paystack Live Key
-  final String _paystackPublicKey = "pk_live_3117e1b5490f76523d666513330ee1dbef1f1155"; 
+  // Paystack Keys from .env
+  final String _paystackPublicKey = dotenv.env['PAYSTACK_PUBLIC_KEY'] ?? ""; 
+  final String _paystackSecretKey = dotenv.env['PAYSTACK_SECRET_KEY'] ?? ""; 
 
   String _selectedPaymentMethod = 'MPESA_MANUAL'; // Default
   String _selectedRegion = 'Nairobi CBD';
@@ -77,12 +79,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     String? paymentRef; // This will store the transaction code
 
     try {
-      // STRATEGY 1: MANUAL M-PESA
-      if (_selectedPaymentMethod == 'MPESA_MANUAL') {
+      // STRATEGY 1: MANUAL M-PESA (Paybill or Till)
+      if (_selectedPaymentMethod == 'MPESA_MANUAL' || _selectedPaymentMethod == 'MPESA_TILL') {
         paymentRef = _manualMpesaCtrl.text;
         
         // FIX 2: Added '?? ""' to handle potential null values safely
-        await _submitOrderToDatabase(totalAmount, deliveryFee, paymentRef ?? "");
+        await _submitOrderToDatabase(totalAmount, deliveryFee, paymentRef);
       } 
       
       // STRATEGY 2: PAYSTACK (Cards / Auto M-Pesa)
@@ -90,9 +92,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         try {
           await FlutterPaystackPlus.openPaystackPopup(
             publicKey: _paystackPublicKey,
+            secretKey: _paystackSecretKey, // Passing Secret Key as requested
             customerEmail: "client@roma.com",
             context: context,
-            amount: (totalAmount * 100).toString(), // Amount in Kobo/Cents as String
+            amount: (totalAmount * 100).toString(),
             reference: "ROMA_${DateTime.now().millisecondsSinceEpoch}",
             onClosed: () {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Payment Cancelled / Window Closed")));
@@ -211,13 +214,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
             // --- SECTION 2: PAYMENT SELECTOR ---
             _sectionTitle("PAYMENT METHOD"),
-            Row(
+            // --- SECTION 2: PAYMENT SELECTOR ---
+            _sectionTitle("PAYMENT METHOD"),
+            Column(
               children: [
-                _buildPaymentCard("M-Pesa Manual", "MPESA_MANUAL", Icons.phone_android, Colors.green),
-                const SizedBox(width: 8),
-                _buildPaymentCard("Paystack / Card", "PAYSTACK", Icons.credit_card, Colors.blue),
-                const SizedBox(width: 8),
-                _buildPaymentCard("PayPal", "PAYPAL", Icons.public, Colors.indigo),
+                Row(
+                  children: [
+                    _buildPaymentCard("M-Pesa Paybill", "MPESA_MANUAL", Icons.receipt_long, Colors.green),
+                    const SizedBox(width: 8),
+                    _buildPaymentCard("Buy Goods (Till)", "MPESA_TILL", Icons.storefront, Colors.teal),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _buildPaymentCard("Card / Paystack", "PAYSTACK", Icons.credit_card, Colors.blue),
+                    const SizedBox(width: 8),
+                    _buildPaymentCard("PayPal", "PAYPAL", Icons.public, Colors.indigo),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -266,31 +281,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   Widget _buildDynamicPaymentFields() {
     if (_selectedPaymentMethod == 'MPESA_MANUAL') {
-      return Column(
-        key: const ValueKey('MPESA'),
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.1),
-              border: Border.all(color: Colors.green),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Text(
-              "Paybill: 123456\nAccount: ROMA",
-              style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _manualMpesaCtrl,
-            style: const TextStyle(color: Colors.white),
-            decoration: _inputDec("M-Pesa Transaction Code (e.g. QKH...)"),
-            validator: (v) => v!.length < 10 ? "Invalid Code" : null,
-          ),
-        ],
+      return _buildManualPaymentInstructions(
+        "Paybill: 123456\nAccount: ROMA",
+        Colors.green,
+      );
+    } else if (_selectedPaymentMethod == 'MPESA_TILL') {
+      return _buildManualPaymentInstructions(
+        "Buy Goods Till: 3480850\nName: Mary Wanjiru Njoroge",
+        Colors.teal,
       );
     } else if (_selectedPaymentMethod == 'PAYSTACK') {
       return Container(
@@ -366,6 +364,35 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           Text("KES ${amount.toStringAsFixed(0)}", style: const TextStyle(color: Colors.white)),
         ],
       ),
+    );
+  }
+
+  Widget _buildManualPaymentInstructions(String text, Color color) {
+    return Column(
+      key: ValueKey(text.hashCode), // Unique key for animation
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            border: Border.all(color: color),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            text,
+            style: TextStyle(color: color, fontWeight: FontWeight.bold, height: 1.5),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _manualMpesaCtrl,
+          style: const TextStyle(color: Colors.white),
+          decoration: _inputDec("M-Pesa Transaction Code (e.g. QKH...)"),
+          validator: (v) => v!.length < 10 ? "Invalid Code" : null,
+        ),
+      ],
     );
   }
 
